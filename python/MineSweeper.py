@@ -77,9 +77,9 @@ class MineSweeper():
 			if self.cols < 10:
 				self.playGrid[i].extend(['* ' for _ in range(self.cols)])
 			else:
-				self.playGrid[i].extend(['* ' for _ in range(10)])
+				self.playGrid[i].extend(['* ' for _ in range(9)])
 				self.playGrid[i].extend(['*'])
-				self.playGrid[i].extend([' *' for _ in range(11, self.cols)])
+				self.playGrid[i].extend([' *' for _ in range(10, self.cols)])
 
 		self.hiddenGrid = [['*' for _ in range(self.cols + 1)] for _ in range(self.rows + 1)]
 		#self.hiddenGrid.append(['#'])
@@ -123,6 +123,8 @@ class MineSweeper():
 	def help(self):
 		print("\nDIG <row> <col>: Reveal the chosen square. If it's a mine, you lose the game.")
 		print("FLAG <row> <col>: Flag the chosen square. You will not be able to DIG it without confirmation.")
+		print("EXPAND <row> <col>: Reveal all unflagged squares around the chosen square. If any are mines, you lose the game.")
+		print("END: Reveal all unflagged squares. If any are mines, you lose the game.")
 		print("RULES: Display the rules of the game MineSweeper.")
 		print("QUIT: Quit the game.")
 		print("HELP: Display this page.\n")
@@ -178,12 +180,35 @@ class MineSweeper():
 					self.playGrid[r][c] = self.swapChar(self.playGrid[r][c], 'F')
 				elif self.playGrid[r][c].strip() == 'F':
 					self.playGrid[r][c] = self.swapChar(self.playGrid[r][c], '*')
+			case "EXPAND":
+				r, c = int(action[1]), int(action[2])
+				self.expandSquare(r, c)
+			case "END":
+				self.quickEnd()
 			case "RULES":
 				self.rules()
 			case "QUIT":
 				self.gameOver = True
 			case default:
 				self.help()
+
+	def expandSquare(self, r, c):
+		adj = self.adjList(r, c)
+		for ar, ac in adj:
+			if self.hiddenGrid[ar][ac] == 'X' and not self.playGrid[ar][ac].strip() == 'F':
+				self.gameOver = True
+				self.gameLost = True
+				break
+			else:
+				self.uncover(ar, ac)
+
+	def quickEnd(self):
+		self.gameOver = True
+		self.gameLost = False
+		for mr, mc in self.mineLocs:
+			if self.playGrid[mr][mc].strip() == 'F':
+				self.gameLost = True
+				break
 
 	def gameLoop(self):
 		while not self.gameOver:
@@ -200,7 +225,9 @@ class MineSweeper():
 			print(*row)
 
 	def gameEnd(self):
-		if not self.gameLost:
+		if self.gameLost == None:
+			return
+		elif not self.gameLost:
 			print("Congratulations, you won!")
 		else:
 			print("You hit a mine!")
