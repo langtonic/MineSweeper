@@ -27,6 +27,7 @@ class MineSweeper():
 	def customGame(self):
 		confirmed = False
 		while not confirmed:
+			self.rows, self.cols, self.mines = 0, 0, 0
 			self.rows = input("How many rows would you like?: ")
 			if not self.rows.isdigit():
 				print("Please enter a valid number.")
@@ -42,6 +43,9 @@ class MineSweeper():
 				print("Please enter a valid number.")
 				continue
 			self.mines = int(self.mines)
+			if self.mines > (self.rows * self.cols):
+				print("You have selected more mines than squares available.")
+				continue
 			print(f"You have chosen a {self.rows}x{self.cols} grid with {self.mines} mines.")
 			conf = input("Are you sure this is the setup you would like to play? Y/N: ")
 			if conf.upper() == 'Y':
@@ -51,24 +55,49 @@ class MineSweeper():
 		adj = []
 		for dr, dc in self.DIRS:
 			nr, nc = r + dr, c + dc
-			if nr >= 0 and nr < self.rows and nc >= 0 and nc < self.cols:
+			if nr >= 1 and nr <= self.rows and nc >= 1 and nc <= self.cols:
 				adj.append((nr, nc))
 			else: 
 				continue
 		return adj
 
 	def createGrid(self):
-		self.playGrid = [['*' for _ in range(self.cols)] for _ in range(self.rows)]
-		self.hiddenGrid = [['*' for _ in range(self.cols)] for _ in range(self.rows)]
-		for i in range(self.mines):
+		self.playGrid = []
+		self.playGrid.append(['#'])
+		if self.cols < 10:
+			self.playGrid[0].extend([(' ' + str(i)) for i in range(1, self.cols + 1)])
+		else:
+			self.playGrid[0].extend([(' ' + str(i)) for i in range(1, 10)])
+			self.playGrid[0].extend([i for i in range(10, self.cols + 1)])
+		for i in range(1, self.rows + 1):
+			if i < 10:
+				self.playGrid.append([(' ' + str(i))])
+			else:
+				self.playGrid.append([i])
+			if self.cols < 10:
+				self.playGrid[i].extend(['* ' for _ in range(self.cols)])
+			else:
+				self.playGrid[i].extend(['* ' for _ in range(10)])
+				self.playGrid[i].extend(['*'])
+				self.playGrid[i].extend([' *' for _ in range(11, self.cols)])
+
+		self.hiddenGrid = [['*' for _ in range(self.cols + 1)] for _ in range(self.rows + 1)]
+		#self.hiddenGrid.append(['#'])
+		#self.hiddenGrid[0].extend([i for i in range(1, self.cols + 1)])
+		#for i in range(1, self.rows + 1):
+			#self.hiddenGrid.append([i])
+			#self.hiddenGrid[i].extend(['*' for _ in range(self.cols)])
+
+		for _ in range(self.mines):
 			while True:
-				r, c = randint(0, self.rows - 1), randint(0, self.cols - 1)
+				r, c = randint(1, self.rows), randint(1, self.cols)
 				if self.hiddenGrid[r][c] == '*':
 					self.hiddenGrid[r][c] = 'X'
 					self.mineLocs.append((r, c))
 					break
-		for row in range(self.rows):
-			for col in range(self.cols):
+
+		for row in range(1, self.rows + 1):
+			for col in range(1, self.cols + 1):
 				if self.hiddenGrid[row][col] == 'X':
 					continue
 				count = 0
@@ -92,31 +121,38 @@ class MineSweeper():
 		self.safeSquares = (self.rows * self.cols) - self.mines
 
 	def help(self):
-		print("DIG <row> <col>: Reveal the chosen square. If it's a mine, you lose the game.")
+		print("\nDIG <row> <col>: Reveal the chosen square. If it's a mine, you lose the game.")
 		print("FLAG <row> <col>: Flag the chosen square. You will not be able to DIG it without confirmation.")
 		print("RULES: Display the rules of the game MineSweeper.")
 		print("QUIT: Quit the game.")
-		print("HELP: Display this page.")
+		print("HELP: Display this page.\n")
 
 	def rules(self):
 		pass
+
+	def swapChar(self, curr, new):
+		new = str(new)
+		match curr:
+			case ' *':
+				new = ' ' + new
+			case '* ':
+				new = new + ' '
+			case ' F':
+				new = ' ' + new
+			case 'F ':
+				new = new + ' '
+		return new
 
 	def uncover(self, r, c):
 		stack = [(r, c)]
 		while stack:
 			nr, nc = stack.pop()
-			if self.hiddenGrid[nr][nc] == 0 and self.playGrid[nr][nc]  == '*':
-				print('passed check')
-				self.playGrid[nr][nc] = 0
-				print('set value')
+			if self.hiddenGrid[nr][nc] == 0 and self.playGrid[nr][nc].strip()  == '*':
+				self.playGrid[nr][nc] = self.swapChar(self.playGrid[nr][nc], 0)
 				self.squaresUncovered += 1
-				print('iter value')
-				print(f"({nr}, {nc}) is adjacent to {self.adjList(nr, nc)}")
 				stack.extend(self.adjList(nr, nc))
-				print('added neighbours')
-			elif self.playGrid[nr][nc] == '*' and not self.hiddenGrid[nr][nc] == 'X':
-				print('else check')
-				self.playGrid[nr][nc] = self.hiddenGrid[nr][nc]
+			elif self.playGrid[nr][nc].strip() == '*' and not self.hiddenGrid[nr][nc] == 'X':
+				self.playGrid[nr][nc] = self.swapChar(self.playGrid[nr][nc], self.hiddenGrid[nr][nc])
 				self.squaresUncovered += 1
 				
 
@@ -127,10 +163,10 @@ class MineSweeper():
 		match action[0].upper():
 			case "DIG":
 				r, c = int(action[1]), int(action[2])
-				if self.hiddenGrid[r][c] == 'F':
-					check = input("Are you sure you want to dig a flagged location? Y/N: ")
+				if self.playGrid[r][c].strip() == 'F':
+					check = input("Are you sure you want to dig a flagged location? Y/N: ").upper()
 					if check == 'N':
-						pass
+						return
 				if self.hiddenGrid[r][c] == 'X':
 					self.gameOver = True
 					self.gameLost = True
@@ -138,10 +174,10 @@ class MineSweeper():
 					self.uncover(r, c)
 			case "FLAG":
 				r, c = int(action[1]), int(action[2])
-				if self.playGrid[r][c] == '*':
-					self.playGrid[r][c] = 'F'
-				elif self.playGrid == 'F':
-					self.playGrid = '*'
+				if self.playGrid[r][c].strip() == '*':
+					self.playGrid[r][c] = self.swapChar(self.playGrid[r][c], 'F')
+				elif self.playGrid[r][c].strip() == 'F':
+					self.playGrid[r][c] = self.swapChar(self.playGrid[r][c], '*')
 			case "RULES":
 				self.rules()
 			case "QUIT":
@@ -158,8 +194,8 @@ class MineSweeper():
 
 	def showMines(self):
 		for mr, mc in self.mineLocs:
-			if self.playGrid[mr][mc] == '*':
-				self.playGrid[mr][mc] = 'X'
+			if self.playGrid[mr][mc].strip() == '*':
+				self.playGrid[mr][mc] = self.swapChar(self.playGrid[mr][mc], 'X')
 		for row in self.playGrid:
 			print(*row)
 
