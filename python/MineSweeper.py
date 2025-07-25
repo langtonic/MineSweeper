@@ -2,6 +2,16 @@ from random import randint
 
 class MineSweeper():
 
+	class Square():
+		def __init__(self, content):
+			self.shown = content
+			self.hidden = ''
+			self.colour = '\033[0m'
+
+		def __str__(self):
+			str = self.colour + self.shown #+ '\033[0m'
+			return str
+
 	DIRS = [(-1, -1), (-1, 0), (-1, 1),
 		(0, -1), (0, 1),
 		(1, -1), (1, 0), (1, 1)]
@@ -12,17 +22,47 @@ class MineSweeper():
 		4: ("CUSTOM", '?', '?', '?'),
 		}
 
+	COLOUR = {'0': "\033[0;47m",
+		'1': "\033[30;47m",
+		'2': "\033[31;47m",
+		'3': "\033[32;47m",
+		'4': "\033[33;47m",
+		'5': "\033[34;47m",
+		'6': "\033[35;47m",
+		'7': "\033[36;47m",
+		'8': "\033[90;47m",
+		'X': "\033[0;31m",
+		'X#': "\033[30;41m",
+		'F': "\033[91;47m",
+		'F+': "\033[92;107m",
+		'F-': "\033[91;107m",
+		'*': "\033[97;100m",
+		' ': "\033[0m",
+		}	
+
 	def __init__(self):
-		self.playGrid = []
-		self.hiddenGrid = []
+		self.colourGrid = [[' ']]
+		self.greyGrid = [[' ']]
 		self.mineLocs = []
+		self.falseFlags = []
 		self.rows = 0
 		self.cols = 0
 		self.mines = 0
+		self.flags = 0
 		self.gameOver = False
 		self.gameLost = None
 		self.safeSquares = 0
 		self.squaresUncovered = 0
+		self.colour = False
+
+	def printBoard(self):
+		if self.colour:
+			for row in self.colourGrid:
+				print(*row, end='')
+				print("\033[0m")
+		else:
+			for row in self.greyGrid:
+				print(*row)
 
 	def customGame(self):
 		confirmed = False
@@ -62,53 +102,55 @@ class MineSweeper():
 		return adj
 
 	def createGrid(self):
-		self.playGrid = []
-		self.playGrid.append(['#'])
 		if self.cols < 10:
-			self.playGrid[0].extend([(' ' + str(i)) for i in range(1, self.cols + 1)])
+			self.colourGrid[0].extend([(' ' + str(i)) for i in range(1, self.cols + 1)])
+			self.greyGrid[0].extend([(' ' + str(i)) for i in range(1, self.cols + 1)])
 		else:
-			self.playGrid[0].extend([(' ' + str(i)) for i in range(1, 10)])
-			self.playGrid[0].extend([i for i in range(10, self.cols + 1)])
+			self.colourGrid[0].extend([(' ' + str(i)) for i in range(1, 10)])
+			self.colourGrid[0].extend([i for i in range(10, self.cols + 1)])
+			self.greyGrid[0].extend([(' ' + str(i)) for i in range(1, 10)])
+			self.greyGrid[0].extend([i for i in range(10, self.cols + 1)])
 		for i in range(1, self.rows + 1):
 			if i < 10:
-				self.playGrid.append([(' ' + str(i))])
+				self.colourGrid.append([(' ' + str(i))])
+				self.greyGrid.append([(' ' + str(i))])
 			else:
-				self.playGrid.append([i])
+				self.colourGrid.append([i])
+				self.greyGrid.append([i])
 			if self.cols < 10:
-				self.playGrid[i].extend(['* ' for _ in range(self.cols)])
+				self.colourGrid[i].extend([self.Square('* ') for _ in range(self.cols)])
+				self.greyGrid[i].extend(['* ' for _ in range(self.cols)])
 			else:
-				self.playGrid[i].extend(['* ' for _ in range(9)])
-				self.playGrid[i].extend(['*'])
-				self.playGrid[i].extend([' *' for _ in range(10, self.cols)])
+				self.colourGrid[i].extend([self.Square('* ') for _ in range(9)])
+				self.colourGrid[i].extend([self.Square('*')])
+				self.colourGrid[i].extend([self.Square(' *') for _ in range(10, self.cols)])
+				self.greyGrid[i].extend(['* ' for _ in range(9)])
+				self.greyGrid[i].extend(['*'])
+				self.greyGrid[i].extend([' *' for _ in range(10, self.cols)])
 
-		self.hiddenGrid = [['*' for _ in range(self.cols + 1)] for _ in range(self.rows + 1)]
-		#self.hiddenGrid.append(['#'])
-		#self.hiddenGrid[0].extend([i for i in range(1, self.cols + 1)])
-		#for i in range(1, self.rows + 1):
-			#self.hiddenGrid.append([i])
-			#self.hiddenGrid[i].extend(['*' for _ in range(self.cols)])
 
 		for _ in range(self.mines):
 			while True:
 				r, c = randint(1, self.rows), randint(1, self.cols)
-				if self.hiddenGrid[r][c] == '*':
-					self.hiddenGrid[r][c] = 'X'
+				if not self.colourGrid[r][c].hidden == 'X':
+					self.colourGrid[r][c].hidden = 'X'
 					self.mineLocs.append((r, c))
 					break
 
 		for row in range(1, self.rows + 1):
 			for col in range(1, self.cols + 1):
-				if self.hiddenGrid[row][col] == 'X':
+				self.colourGrid[row][col].colour = self.COLOUR[self.colourGrid[row][col].shown.strip()]
+				if self.colourGrid[row][col].hidden == 'X':
 					continue
 				count = 0
 				for r, c in self.adjList(row, col):
-					if self.hiddenGrid[r][c] == 'X':
+					if self.colourGrid[r][c].hidden == 'X':
 						count += 1
-				self.hiddenGrid[row][col] = count
+				self.colourGrid[row][col].hidden = str(count)
 
 	def setUp(self):
 		for key, spec in self.MODES.items():
-			print(f"{key}:{spec[0]}\tSize:{spec[1]}x{spec[2]}\tMines:{spec[3]}")
+			print(f"{key}:{spec[0]} Size:{spec[1]}x{spec[2]} Mines:{spec[3]}")
 		difficulty = None
 		while difficulty not in self.MODES.keys():
 			difficulty = int(input("Please select a difficulty from the above list: "))
@@ -126,11 +168,12 @@ class MineSweeper():
 		print("EXPAND <row> <col>: Reveal all unflagged squares around the chosen square. If any are mines, you lose the game.")
 		print("END: Reveal all unflagged squares. If any are mines, you lose the game.")
 		print("RULES: Display the rules of the game MineSweeper.")
+		print("COLOUR: Switch between colour and greyscale")
 		print("QUIT: Quit the game.")
 		print("HELP: Display this page.\n")
 
 	def rules(self):
-		pass
+		print("\nI feel like you should know these already. I'll fill them in later maybe.\n")
 
 	def swapChar(self, curr, new):
 		new = str(new)
@@ -149,44 +192,69 @@ class MineSweeper():
 		stack = [(r, c)]
 		while stack:
 			nr, nc = stack.pop()
-			if self.hiddenGrid[nr][nc] == 0 and self.playGrid[nr][nc].strip()  == '*':
-				self.playGrid[nr][nc] = self.swapChar(self.playGrid[nr][nc], 0)
+			if self.colourGrid[nr][nc].hidden == '0' and self.colourGrid[nr][nc].shown.strip()  == '*':
+				self.colourGrid[nr][nc].shown = self.swapChar(self.colourGrid[nr][nc].shown, 0)
+				self.greyGrid[nr][nc] = self.colourGrid[nr][nc].shown
+				self.colourGrid[nr][nc].colour = self.COLOUR[self.colourGrid[nr][nc].shown.strip()]
 				self.squaresUncovered += 1
 				stack.extend(self.adjList(nr, nc))
-			elif self.playGrid[nr][nc].strip() == '*' and not self.hiddenGrid[nr][nc] == 'X':
-				self.playGrid[nr][nc] = self.swapChar(self.playGrid[nr][nc], self.hiddenGrid[nr][nc])
+			elif self.colourGrid[nr][nc].shown.strip() == '*' and not self.colourGrid[nr][nc].hidden == 'X':
+				self.colourGrid[nr][nc].shown = self.swapChar(self.colourGrid[nr][nc].shown, self.colourGrid[nr][nc].hidden)
+				self.greyGrid[nr][nc] = self.colourGrid[nr][nc].shown
+				self.colourGrid[nr][nc].colour = self.COLOUR[self.colourGrid[nr][nc].shown.strip()]
 				self.squaresUncovered += 1
 				
 
 	def playTurn(self):
-		for row in self.playGrid:
-			print(*row)
+		self.printBoard()
+		print(f"Mines Remaining: {self.mines - self.flags}")
 		action = input("What would you like to do? ").split()
 		match action[0].upper():
 			case "DIG":
-				r, c = int(action[1]), int(action[2])
-				if self.playGrid[r][c].strip() == 'F':
+				try:
+					r, c = int(action[1]), int(action[2])
+				except IndexError:
+					self.help()
+					return
+				if self.colourGrid[r][c].shown.strip() == 'F':
 					check = input("Are you sure you want to dig a flagged location? Y/N: ").upper()
 					if check == 'N':
 						return
-				if self.hiddenGrid[r][c] == 'X':
+				if self.colourGrid[r][c].hidden == 'X':
+					self.colourGrid[r][c].shown = self.swapChar(self.colourGrid[r][c].shown, 'X')
 					self.gameOver = True
 					self.gameLost = True
 				else:
 					self.uncover(r, c)
 			case "FLAG":
-				r, c = int(action[1]), int(action[2])
-				if self.playGrid[r][c].strip() == '*':
-					self.playGrid[r][c] = self.swapChar(self.playGrid[r][c], 'F')
-				elif self.playGrid[r][c].strip() == 'F':
-					self.playGrid[r][c] = self.swapChar(self.playGrid[r][c], '*')
+				try:
+					r, c = int(action[1]), int(action[2])
+				except IndexError:
+					self.help()
+					return
+				if self.colourGrid[r][c].shown.strip() == '*':
+					self.flags += 1
+					self.colourGrid[r][c].shown = self.swapChar(self.colourGrid[r][c].shown, 'F')
+					self.greyGrid[r][c] = self.colourGrid[r][c].shown
+					if self.colourGrid[r][c].hidden == 'X':
+						self.falseFlags.append((r, c))
+				elif self.colourGrid[r][c].strip() == 'F':
+					self.flags -= 1
+					self.colourGrid[r][c] = self.swapChar(self.colourGrid[r][c], '*')
+					self.greyGrid[r][c] = self.colourGrid[r][c].shown
 			case "EXPAND":
-				r, c = int(action[1]), int(action[2])
+				try:
+					r, c = int(action[1]), int(action[2])
+				except IndexError:
+					self.help()
+					return
 				self.expandSquare(r, c)
 			case "END":
 				self.quickEnd()
 			case "RULES":
 				self.rules()
+			case "COLOUR":
+				self.colour = not self.colour
 			case "QUIT":
 				self.gameOver = True
 			case default:
@@ -195,10 +263,10 @@ class MineSweeper():
 	def expandSquare(self, r, c):
 		adj = self.adjList(r, c)
 		for ar, ac in adj:
-			if self.hiddenGrid[ar][ac] == 'X' and not self.playGrid[ar][ac].strip() == 'F':
+			if self.colourGrid[ar][ac].hidden == 'X' and not self.colourGrid[ar][ac].shown.strip() == 'F':
+				self.colourGrid[ar][ac].shown = self.swapChar(self.colourGrid[ar][ac], 'X')
 				self.gameOver = True
 				self.gameLost = True
-				break
 			else:
 				self.uncover(ar, ac)
 
@@ -206,9 +274,10 @@ class MineSweeper():
 		self.gameOver = True
 		self.gameLost = False
 		for mr, mc in self.mineLocs:
-			if self.playGrid[mr][mc].strip() == 'F':
+			if self.colourGrid[mr][mc].shown.strip() == '*':
+				self.colourGrid[mr][mc].shown = self.swapChar(self.colourGrid[mr][mc].shown, 'X')
 				self.gameLost = True
-				break
+				
 
 	def gameLoop(self):
 		while not self.gameOver:
@@ -219,16 +288,28 @@ class MineSweeper():
 
 	def showMines(self):
 		for mr, mc in self.mineLocs:
-			if self.playGrid[mr][mc].strip() == '*':
-				self.playGrid[mr][mc] = self.swapChar(self.playGrid[mr][mc], 'X')
-		for row in self.playGrid:
-			print(*row)
+			match self.colourGrid[mr][mc].shown.strip():
+				case '*':
+					self.colourGrid[mr][mc].shown = self.swapChar(self.colourGrid[mr][mc].shown, 'X')
+					self.greyGrid[mr][mc] = self.colourGrid[mr][mc].shown
+					self.colourGrid[mr][mc].colour = self.COLOUR['X']
+				case 'X':
+					self.greyGrid[mr][mc] = self.colourGrid[mr][mc].shown
+					self.colourGrid[mr][mc].colour = self.COLOUR['X#']
+				case 'F':
+					self.colourGrid[mr][mc].colour = self.COLOUR['F+']
+		for fr, fc in self.falseFlags:
+			if self.colourGrid[fr][fc].shown.strip() == 'F':
+				self.colourGrid[fr][fc].colour = self.COLOUR['F-']
+				self.greyGrid[fr][fc] = self.swapChar(self.greyGrid[fr][fc], 'f')
+		self.printBoard()
 
 	def gameEnd(self):
 		if self.gameLost == None:
 			return
 		elif not self.gameLost:
 			print("Congratulations, you won!")
+			self.printBoard()
 		else:
 			print("You hit a mine!")
 			self.showMines()
